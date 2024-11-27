@@ -1,0 +1,2 @@
+data/raw/crime_rawdata_2020s.csv filter=lfs diff=lfs merge=lfs -text
+data/raw/crime_rawdata_2010s.csv filter=lfs diff=lfs merge=lfs -text
