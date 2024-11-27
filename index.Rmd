@@ -1,0 +1,347 @@
+---
+title: "Homicide Trends in Los Angeles Police Department Precincts"
+subtitle: "PSY6422 Module Project"
+output: html_document
+date: "2024-11-22"
+---
+
+# Research Question
+- **How has the COVID-19 pandemic impacted on homicide rates in Los Angeles?**
+- **Can data give us specific insights into which subsets of the population were most impacted by any associated changes?**
+
+The COVID-19 pandemic impacted society significantly in a number of ways, from direct effects of contracting the illness to the mental health and economic impacts of related lockdown and social distancing measures implemented. Despite initial assumptions that the disease did not discriminate, it soon became evident that individuals of certain groups (namely people of colour and/or low income) were disproportionately impacted. In the US state of Michigan, despite only representing 14% of the population, Black residents accounted for 40% of COVID related deaths in early stages of the pandemic [Vox, 2020](https://www.vox.com/2020/4/10/21207520/coronavirus-deaths-economy-layoffs-inequality-covid-pandemic). Later, once a vaccine had been developed, serious inequalities in vaccine rollout between high income and low income individuals were uncovered. In the state of California, this was observed at a 60% difference in vaccination rates between wealthier vs. poorer areas [Boston University, 2022](https://www.bu.edu/eci/2022/03/10/how-covid-19-has-magnified-pre-existing-inequalities-in-the-us/).
+
+Pandemics, while historically infrequent, have a significant and lasting impact. With climate change, pandemics are ever more likely to occur in future. Learning from this and preparing for a future similar event is vital. In my project, I hoped to explore changes in violent crime and uncover trends which may help us in that aim.
+
+# Data Origins
+The project focuses on LAPD data due to the richness of location data associated with crime reports and the openness of available data. The LAPD is also one of the largest police departments in the USA, allowing for a large amount of data to be explored in the project.
+
+Raw data for this project were obtained from the website sources listed below:
+
+- [2010 - 2019 LAPD crime data](https://data.lacity.org/Public-Safety/Crime-Data-from-2010-to-2019/63jg-8b9z/about_data)
+- [2020 - present LAPD crime data](https://data.lacity.org/Public-Safety/Crime-Data-from-2020-to-Present/2nrs-mtv8/about_data)
+- [LAPD precincts geojson file](https://geohub.lacity.org/datasets/lahub::lapd-divisions/about)
+
+*NB: The above datasets were extracted for analysis and visualisation in November 2024. The raw data in these datasets will continue to change in future. Any visualisations and insights drawn are relate exclusively to the data which were available on the date of extraction*
+
+# Loading Packages
+
+```{r setup, include = FALSE, results = "hide"}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(tidyverse)
+library(sf)
+library(gifski)
+library(gganimate)
+
+```
+
+
+# Loading Data
+
+```{r loading data, message = FALSE, warning = FALSE}
+
+# csv crime data
+rawdata2010s <- read_csv(here("data", "raw", "crime_rawdata_2010s.csv")) 
+rawdata2020s <- read_csv(here("data", "raw", "crime_rawdata_2020s.csv"))
+
+# geojson spatial data
+geo_map1 <- st_read(here("data", "map_data", "geo_data.geojson"))
+
+
+```
+
+
+# Data Wrangling
+
+**Initial sanity checks**
+
+I started by visually checking over the data. A few things I checked for and noticed are noted below:
+
+- Started by understanding what the data was describing, identifying columns of interest. This informed the first steps of my data wrangling below.
+- I noticed the "DATE.OCC" column in the crime data had the same time (midnight) for every row which indicated to me that it is false information.
+
+**Processing crime data: Part 1**
+
+Informed by the initial checks, I began processing the crime data. I chose to merge the two crime datasets early on as they include the exact same variables, just covering different time spans. Following the merge I had over 3 million observations. Due to the size of the dataset I prioritised trimming down to the essential data for my project before proceeding with data cleaning. This involved trimming unnecessary columns and crimes which were not of interest. I also changed the formatting of columns for ease of interpretability and consistency in any later code.
+
+```{r processing 1, message = FALSE, results = "hide"}
+
+# changing DR_NO data class to character to match 2010s dataset and allow bind_rows to run
+rawdata2020s <- rawdata2020s %>% mutate(DR_NO = as.character(DR_NO))
+
+# merge the two separate datasets into one 
+crimedata1_merged <- bind_rows(rawdata2010s, rawdata2020s)
+
+# trim unnecessary columns
+crimedata2_coltrim <- crimedata1_merged %>%
+  select(
+    `DATE OCC`, 
+    `AREA`, 
+    `AREA NAME`,
+    `Crm Cd Desc`
+  )
+
+# renaming remaining columns
+crimedata3_colrename <- crimedata2_coltrim %>%
+  rename(
+    "date_occ" = `DATE OCC`,
+    "precinct_num" = `AREA`,
+    "precinct_name" = `AREA NAME`,
+    "crime_type" = `Crm Cd Desc`
+  )
+
+# checking for crime types of interest for the project
+
+unique(crimedata3_colrename$crime_type)
+
+# creating homicide variable to filter for homicide only (lynching category was included in this as I aim to focus on intentional and unlawful killings).
+homicide <- c(
+    "CRIMINAL HOMICIDE",
+    "LYNCHING"
+    )
+
+# filtering for homicide crimes only 
+homicidedata1 <- crimedata3_colrename %>%
+  filter(
+    crime_type %in% homicide
+  )
+
+
+```
+
+**Second round of sanity checks**
+
+After some initial filtering and reformatting to make the data more manageable, I went through another round of checks. Each line of code below has a preceding comment explaining what I was checking.
+
+In addition to the below checks, I also completed a visual sanity check to ensure the precinct numbers on both spatial and crime datasets referred to the same area and found no issues.
+
+```{r sanity checks, results = "hide"}
+
+# The data should cover a period from January 2010 - October 2024. Output does not show correct range. Error is due to R treating this column as a character variable. Date information will be extracted.
+range(homicidedata1$date_occ) # "01/01/2010 12:00:00 AM" "12/31/2022 12:00:00 AM"
+
+
+# Following above check, now checking all data classes. Noted all will need to be changed. date_occ will be changed from "character" to "date", the remainder will be changed to "factor" as they are categorical variables.
+columns <- c("date_occ", "precinct_num", "precinct_name", "crime_type")
+sapply(homicidedata1[columns], class) 
+
+# sanity check - there should only be 21 LAPD precincts. This is correct, but noticed geo_map will need padding to allow join with homicide data.
+range(homicidedata1$precinct_num) # 01 - 21
+range(geo_map1$PREC) # 1 - 21
+
+```
+
+**Processing crime data: Part 2**
+
+I identified a few other things to address within the data above. I went through a second round of processing the data based on these checks.
+
+```{r processing 2, message = FALSE, results = FALSE}
+
+# changing categorical from character to factor
+homicidedata2_factors <- homicidedata1 %>%
+  mutate(
+    `precinct_name` = as.factor(`precinct_name`),
+    `crime_type` = as.factor(`crime_type`),
+    `precinct_num` = as.factor(`precinct_num`)
+  )
+
+# changing date from character to date class following sanity checks above
+homicidedata3_date <- homicidedata2_factors %>%
+  mutate(
+    date_occ = as.Date(sub(" .*", "", date_occ), format = "%m/%d/%Y")
+  )
+
+# checking range of dates - range is now as expected.
+range(homicidedata3_date$date_occ) # "2010-01-01" "2024-10-07"
+
+# creating summary data - not including 2024 data as we don't have the full year
+homicidedata4_summary <- homicidedata3_date %>%
+  mutate(year = year(date_occ)) %>%
+  filter(year < 2024) %>%
+  group_by(precinct_num, precinct_name, year) %>%
+  summarise(
+    homicide_count = n(),
+    .groups = "drop"
+  )
+
+
+```
+
+**Processing spatial data**
+
+Next, I focused on applying some changes to the spatial data. This was mostly just formatting and preparation for a join. Specifically:
+
+- I removed the precinct name (APREC) column as this will become a duplicate after the join.
+- I removed the OBJECTID column, this is a row identifier which will not be relevant in joined data
+- I renamed the remaining columns. This will ensure consistency in my code and will also be important in facilitating the join.
+- I padded the precinct_num column as I identified this inconsistency between the two datasets in earlier checks.
+
+```{r processing geo, message = FALSE}
+
+# renaming and trimming columns
+geo_map2_renamed <- geo_map1 %>%
+  rename(
+    "precinct_num" = `PREC`,
+    "area" = `AREA`,
+    "perimeter" = `PERIMETER`
+  ) %>%
+  select(
+    -`APREC`,
+    -`OBJECTID`
+  )
+
+# padding the precinct_num column
+geo_map3_pad <- geo_map2_renamed %>%
+  mutate(
+    precinct_num = as.character(precinct_num),
+    precinct_num = str_pad(geo_map2_renamed$precinct_num, width = 2, side = "left", pad = "0"),
+    precinct_num = as.factor(precinct_num)
+  )
+
+```
+
+**Joining the data**
+
+In the line of code below I am executing the join of spatial and crime data ready for visualisations later in the process. I also complete one final missing values check to identify any potential issues with the join but found no concerns. Note, I also visually reviewed the data for any inconsistencies following the join but found no issues.
+
+```{r join, message = FALSE, results = "hide"}
+
+# performing left join on data
+joined_data <- left_join(geo_map3_pad, homicidedata4_summary, by = "precinct_num") %>%
+  arrange(year, precinct_num)
+
+# checking for missing values
+colSums(is.na(joined_data))
+
+```
+
+
+# Data Visualisation
+
+**Visualisation 1**
+
+I started the visualisation process by exploring the patterns in the data in the simplest way possible before determining my next steps. I started with a simple line graph and quickly noticed a considerable spike in homicides in 2020. I noticed a general decline in the years following 2020, but a very steep drop in 2021 seemed to stick out from the general trend downwards post-pandemic.
+
+
+```{r line graph}
+
+# Note to self - split up the mapping and plotting.
+
+homicides_scatter <- homicidedata4_summary %>%
+  group_by(year) %>% 
+  summarise(total_homicide_count = sum(homicide_count)) %>% 
+  ggplot(aes(x = year, y = total_homicide_count)) + 
+  geom_line(color = "grey") +
+  geom_point(color = "#69b3a2", size = 4) + 
+  labs(
+    title = "Total Homicide Count by Year (2010-2023)",
+    x = "Year",
+    y = "Total Homicide Count"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank()
+  ) +
+  scale_x_continuous(breaks = seq(2010, 2023, by = 1)) 
+
+# viewing the plot
+homicides_scatter
+
+# saving the plot
+ggsave(
+  filename = here("plots", "homicides_scatter.png"),
+  plot = homicides_scatter
+  )
+
+```
+
+
+**Visualisation 2**
+
+Following my initial visualisation, I felt interested in exploring the impacts of the pandemic on homicide rates. I felt it would be helpful to visualise the trends geographically for a different perspective on the data. I found this visualisation particularly helpful in highlighting two main issues:
+
+- First, I noticed a considerable lack of data in 2021 compared to all other years, with entire precincts lacking data for the whole year. This explained the steep decline in my first visualisation which seemed out of trend. It also raised a new issue with how best to visualise the data.
+- Second, I noticed that, despite a considerable impact of the pandemic on homicide as a whole, the effect seems concentrated in certain parts of the map. 
+
+
+
+**Visualisation 3**
+
+For my third and final visualisation, I chose to focus on the steep jump between 2019 and 2020. I considered looking at "pre" and "post" pandemic averages, but felt this would dilute the significance of the pandemic in creating a large spike in specific areas. 
+
+I wanted a graph which intuitively gives the viewer a sense of "direction" of the effect. With 21 precincts, it was also important to not overload the viewer with too much visual clutter.  I chose a dumbbell chart due to its ability to succinctly visualise two points for a number of categories.
+
+I tried to make purposeful decisions with my formatting to draw the viewer's attention to the story the visualisation is telling. One way I did this was by minimising grid lines to reduce background noise. I also chose to colour and size the "2019" point more subtly, as this was to act as the "baseline" which shows the effect of the pandemic on homicides. I achieved this effect by giving the connecting line and the "2020" point the same colour. My aim in doing this was to give a sense of continuity between the two in order to encourage the person looking at the visualisation to track the increase. In doing this, I hope to give a visual sense of distance travelled to arrive at this second point.
+
+Some other formatting decisions I made where in reducing text size of x/y labels and applying a grey colour to the subtitle. These choices were all made in an attempt to reduce the aspects of the graph pulling on the viewer's attention.
+
+This process did involve some re-wrangling of the data, so the code chunk starts with that.
+
+```{r, final visualisation, fig.width = 10, fig.height = 5}
+
+# filtering and trimming away unnecessary data
+dumbbell_data_filter <- homicidedata4_summary %>%
+  filter(year %in% c(2019, 2020))
+
+# reformatting data as wide data
+dumbbell_data_wide <- dumbbell_data_filter %>%
+  pivot_wider(
+    names_from = year,
+    values_from = homicide_count,
+    names_prefix = "count_"
+  ) 
+
+
+# wrapping subtitle
+wrapped_subtitle <- str_wrap(
+  "The LAPD reported a sharp rise in homicides in the first year of the pandemic, but to differing degrees across precincts",
+  width = 110)
+
+# creating the plot
+homicides_dumbbell <- ggplot(dumbbell_data_wide) +
+  geom_segment(aes(
+    x = count_2019, xend = count_2020,
+    y = reorder(precinct_name, count_2020), yend = reorder(precinct_name, count_2020)
+  ), linetype = "dotted", color = "#27408B", linewidth = 0.4) + # creating dotted line - colour matches point of interest (2020 count)
+  # small orange dots for 2019
+  geom_point(aes(x = count_2019, y = reorder(precinct_name, count_2020), color = "2019"), size = 2) +
+  # larger blue dots for 2020 - to focus consumer's eye on the point of interest
+  geom_point(aes(x = count_2020, y = reorder(precinct_name, count_2020), color = "2020"), size = 3.5) +
+  # 
+  scale_color_manual(
+    name = "Year",  
+    values = c("2019" = "#FFB385", "2020" = "#27408B")
+  ) +
+  labs(
+    title = "Los Angeles Police Department Homicide Rates",
+    subtitle = wrapped_subtitle,
+    x = "Number of Homicides",
+    y = "LAPD Precinct"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 7, family = "Helvetica"),  # Adjust y-axis label size and font
+    axis.text.x = element_text(size = 7, family = "Helvetica"),  # Adjust x-axis label size and font
+    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  # Title font
+    plot.subtitle = element_text(size = 12, family = "Helvetica", color = "grey"),  # Subtitle font
+    axis.title = element_text(size = 8, family = "Helvetica", face = "bold"),  # Axis title font
+    panel.grid.major.y = element_blank(), # removing horizonal grid lines
+    panel.grid.minor = element_blank() # removing minor veritcal lines
+  )
+homicides_dumbbell
+
+ggsave(
+  filename = here("plots", "homicides_dumbbell.png"),
+  plot = homicides_dumbbell
+  )
+
+
+```
+
+
+# Limitations
+
+# Interpretation
