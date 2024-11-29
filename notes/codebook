@@ -1,0 +1,30 @@
+Codebook
+
+I have used open data from the sources below:
+- 2010 - 2019 LAPD crime data: https://data.lacity.org/Public-Safety/Crime-Data-from-2010-to-2019/63jg-8b9z/about_data
+- 2020 - present LAPD crime data: https://data.lacity.org/Public-Safety/Crime-Data-from-2020-to-Present/2nrs-mtv8/about_data
+- LAPD precincts geojson file: https://geohub.lacity.org/datasets/lahub::lapd-divisions/about
+
+The codebook in this repository only details the relevant columns for the project. An extensive codebook for the raw data can be found at the links above.
+
+
+Below I will include the names of the datasets and explanations of each variable included in the datasets my visualisations were derived from. All of these files can be found in the folder /data/processed.
+
+joined_spatial_data.geojson:
+- precinct_num: unique numerical identifier given to a specific precinct
+- precinct_name: name of the precinct - each name corresponds to a number in precinct_num
+- year: the calendar year that the crime occurred
+- homicide_count: the number of homicides in that year and precinct
+- geometry: polygon of the precinct for plotting spatial data
+
+homicide_summary_data.csv:
+- precinct_num: unique numerical identifier given to a specific precinct
+- precinct_name: name of the precinct - each name corresponds to a number in precinct_num
+- year: the calendar year that the crime occurred
+- homicide_count: the number of homicides in that year and precinct
+
+dumbbell_data_wide.csv:
+- precinct_num: unique numerical identifier given to a specific precinct
+- precinct_name: name of the precinct - each name corresponds to a number in precinct_num
+- count_2019: number of homicides in 2019 (corresponds to a precinct)
+- count_2020: number of homicides in 2020 (corresponds to a precinct)
