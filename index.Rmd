@@ -388,15 +388,26 @@ homicides_dumbbell <- ggplot(dumbbell_data_wide) +
     panel.grid.major.y = element_blank(), # removing horizontal grid lines
     panel.grid.minor = element_blank() # removing minor vertical lines
   )
+
+# viewing the final visualisation
 homicides_dumbbell
 
+```
+
+**Saving final visualisation and data**
+
+```{r final save, eval = FALSE}
+
+# saving data used in final visualisation
+
+# saving summary data
+write_csv(dumbbell_data_wide, here("data", "processed", "dumbbell_data_wide.csv"))
 
 # saving final visualisation
 ggsave(
   filename = here("plots", "homicides_dumbbell.png"),
   plot = homicides_dumbbell
   )
-
 
 ```
 
