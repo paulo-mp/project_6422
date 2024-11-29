@@ -49,10 +49,10 @@ geo_map1 <- st_read(here("data", "map_data", "geo_data.geojson"))
 # ------------------- processing crime data pt 1-------------------
 
 # DR_NO column is character in one raw dataset, numeric in the other. Changing to character as it is an identifier column.
-rawdata2020s <- rawdata2020s %>% mutate(DR_NO = as.character(DR_NO))
+rawdata2020s_classchange <- rawdata2020s %>% mutate(DR_NO = as.character(DR_NO))
 
 # data collected are same variables just split into decades. Below I am merging these to create one larger dataset to make the visualisation process simpler later on
-crimedata1_merged <- bind_rows(rawdata2010s, rawdata2020s)
+crimedata1_merged <- bind_rows(rawdata2010s, rawdata2020s_classchange)
 
 # trimming unnecessary columns 
 crimedata2_coltrim <- crimedata1_merged %>%
@@ -73,17 +73,16 @@ crimedata3_colrename <- crimedata2_coltrim %>%
   )
 
 # checking for crime types of interest for the project
-
 unique(crimedata3_colrename$crime_type)
 
 
-# filtering for homicides. Note: negligent manslaughter is not included here, only intentional homicide will be explored (i.e. criminal homicide and lynching or any attempts to do either)
-
+# creating homicide variable to filter for homicide only (lynching category was included in this as I aim to focus on intentional and unlawful killings).
 homicide <- c(
     "CRIMINAL HOMICIDE",
     "LYNCHING"
     )
 
+# filtering for crimes in homicide object 
 homicidedata1 <- crimedata3_colrename %>%
   filter(
     crime_type %in% homicide
@@ -123,9 +122,8 @@ homicidedata3_date <- homicidedata2_factors %>%
 # checking range of dates - range is now as expected.
 range(homicidedata3_date$date_occ)
 
-# creating summary data - not including 2024 data as we don't have the full year
-
-homicidedata4_summary <- homicidedata3_date %>%
+# creating summary data - filtering out 2024 data as we don't have the full year
+homicide_summary_data <- homicidedata3_date %>%
   mutate(year = year(date_occ)) %>%
   filter(year < 2024) %>%
   group_by(precinct_num, precinct_name, year) %>%
@@ -134,25 +132,24 @@ homicidedata4_summary <- homicidedata3_date %>%
     .groups = "drop"
   )
 
+# saving summary data
+write_csv(homicide_summary_data, here("data", "processed", "homicide_summary_data.csv"))
 
-#### NOTE TO SELF - SAVE FINAL PROCESSED DATA 
 
 # -------------- processing geojson data --------------
 
 
 # changing column names for consistent format, ease of interpretability, and to allow join
-# removing precinct name to avoid duplicate column in merged data later on
+# filtering only for geometry and precinct_num columns necessary for join and visualisation
 # changing precinct_num from int to factor - the column is not reprenting a numerical value
 
 geo_map2_renamed <- geo_map1 %>%
   rename(
     "precinct_num" = `PREC`,
-    "area" = `AREA`,
-    "perimeter" = `PERIMETER`
   ) %>%
   select(
-    -`APREC`,
-    -`OBJECTID`
+    precinct_num,
+    geometry
   )
 
 # the precinct_num values require padding to match homicide data, code below will convert to character, pad, then convert to factor to enable the join which follows
@@ -164,17 +161,18 @@ geo_map3_pad <- geo_map2_renamed %>%
     precinct_num = as.factor(precinct_num)
   )
 
-# -------------- final full dataset --------------
+# -------------- final spatial processed data --------------
 
-joined_data <- left_join(geo_map3_pad, homicidedata4_summary, by = "precinct_num") %>%
+# joining data by precinct_num
+joined_spatial_data <- left_join(geo_map3_pad, homicide_summary_data, by = "precinct_num") %>%
   arrange(year, precinct_num)
 
 
 # sanity check - checking for missing values following join as it may indicate inconsistencies in data - no concerns
+colSums(is.na(joined_spatial_data))
 
-colSums(is.na(joined_data))
-
-###### SAVE THIS PROCESSED DATA INTO THE FOLDER
+# saving joined data
+st_write(joined_spatial_data, here("data", "processed", "joined_spatial_data.geojson"))
 
 ###################  ** Data Visualisation ** ####################
 
@@ -183,23 +181,26 @@ colSums(is.na(joined_data))
 
 # connected scatterplot graph visualisation of trends through the years
 
-homicides_scatter <- homicidedata4_summary %>%
-  group_by(year) %>% 
-  summarise(total_homicide_count = sum(homicide_count)) %>% 
-  ggplot(aes(x = year, y = total_homicide_count)) + 
-  geom_line(color = "grey") +
-  geom_point(color = "#69b3a2", size = 4) + 
+homicides_scatter <- 
+  homicide_summary_data %>%
+  group_by(year) %>%
+  summarise(total_homicide_count = sum(homicide_count)) %>% # creating a total count of homicides per year across LAPD
+  ggplot(aes(x = year, y = total_homicide_count)) + # mapping aesthetics
+  geom_line(colour = "grey") + # adding simple line graph layer
+  geom_point(color = "#69b3a2", size = 4) + # layering with scatterplot for connected scatter graph
   labs(
-    title = "Total Homicide Count by Year (2010-2023)",
+    title = "Homicides within LAPD jurisdiction (2010-2023)",
     x = "Year",
-    y = "Total Homicide Count"
-  ) +
-  theme_minimal() +
+    y = "Number of Homicides"
+  ) + # editing labels
+  theme_minimal() + # opting for a minimal theme
   theme(
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank()
+    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  # title font
+    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"),  # axis title font
+    panel.grid.minor = element_blank(), # removing all minor gridlines
+    panel.grid.major.x = element_blank() # removing major x gridlines
   ) +
-  scale_x_continuous(breaks = seq(2010, 2023, by = 1)) 
+  scale_x_continuous(breaks = seq(2010, 2023, by = 1))  # including all years on x axis
 
 # viewing the plot
 homicides_scatter
@@ -212,17 +213,19 @@ ggsave(
 
 # ------------- visualisation 2: animated choropleth map ----------------------
 
-# Animating the data year by year on choropleth map
-
-p <- ggplot(joined_data) +
+# animating the data year by year on choropleth map
+p <- ggplot(joined_spatial_data) +
   geom_sf(aes(fill = homicide_count)) +
   theme_void() +
-  scale_fill_gradient(low = "blue", high = "red") +
-  labs(title = 'Year: {frame_time}', fill = 'Homicide Count') +
+  scale_fill_viridis_c() +
+  labs(
+    title = 'Year: {frame_time}', 
+    fill = 'Number of\nHomicides'
+    ) +
   transition_time(year)
 
+homicides_choropleth <- animate(p, nframes = length(unique(joined_spatial_data$year)), width = 500, height = 375, fps = 1)
 
-homicides_choropleth <- animate(p, nframes = length(unique(joined_data$year)), width = 500, height = 375, fps = 1)
 homicides_choropleth
 
 # saving the animation
@@ -235,7 +238,7 @@ anim_save(
 # ------------- visualisation 3: dumbbell plot ----------------------
 
 # filtering and trimming away unnecessary data
-dumbbell_data_filter <- homicidedata4_summary %>%
+dumbbell_data_filter <- homicide_summary_data %>%
   filter(year %in% c(2019, 2020))
 
 # reformatting data as wide data
@@ -274,13 +277,13 @@ homicides_dumbbell <- ggplot(dumbbell_data_wide) +
   ) +
   theme_minimal() +
   theme(
-    axis.text.y = element_text(size = 7, family = "Helvetica"),  # Adjust y-axis label size and font
-    axis.text.x = element_text(size = 7, family = "Helvetica"),  # Adjust x-axis label size and font
-    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  # Title font
-    plot.subtitle = element_text(size = 12, family = "Helvetica", color = "grey"),  # Subtitle font
-    axis.title = element_text(size = 8, family = "Helvetica", face = "bold"),  # Axis title font
-    panel.grid.major.y = element_blank(), # removing horizonal grid lines
-    panel.grid.minor = element_blank() # removing minor veritcal lines
+    axis.text.y = element_text(size = 8, family = "Helvetica"),  # y-axis label size and font
+    axis.text.x = element_text(size = 8, family = "Helvetica"),  # x-axis label size and font
+    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  # title font
+    plot.subtitle = element_text(size = 11, family = "Helvetica", color = "grey"),  # subtitle font
+    axis.title = element_text(size = 9, family = "Helvetica", face = "bold"),  # axis title font
+    panel.grid.major.y = element_blank(), # removing horizontal grid lines
+    panel.grid.minor = element_blank() # removing minor vertical lines
   )
 homicides_dumbbell
 
@@ -288,43 +291,3 @@ ggsave(
   filename = here("plots", "homicides_dumbbell.png"),
   plot = homicides_dumbbell
   )
-
-
-
-
-
-
-
-
-###### Animated plot to put into rmd file
-
-```{r animation}
-
-df <- homicidedata5_date %>%
-  mutate(year = year(date_occ)) %>%
-  filter(year >= 2010 & year <= 2023) %>% 
-  group_by(precinct_num, precinct_name, year) %>%
-  summarise(
-    homicide_count = n(),
-    .groups = "drop" 
-  ) 
-
-df2 <- left_join(geo_map3_pad, df, by = "precinct_num") %>%
-  arrange(year, precinct_num)
-
-
-p <- ggplot(df2) +
-  geom_sf(aes(fill = homicide_count)) +
-  theme_void() +
-  scale_fill_gradient(low = "blue", high = "red") +
-  labs(title = 'Year: {frame_time}', fill = 'Homicide Count') +
-  transition_time(year)
-
-
-la_hom_choropleth <- animate(p, nframes = length(unique(df2$year)), width = 500, height = 375, fps = 1)
-
-# saving the animation
-anim_save(here("plots", "homicide_animation.gif", la_hom_choropleth))
-
-
-```
