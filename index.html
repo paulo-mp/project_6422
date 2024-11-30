@@ -816,14 +816,14 @@ homicides_dumbbell &lt;- ggplot(dumbbell_data_wide) +
   geom_point(aes(x = count_2019, y = reorder(precinct_name, count_2020), color = &quot;2019&quot;), size = 2) +
   # larger blue dots for 2020 - to focus consumer&#39;s eye on the point of interest
   geom_point(aes(x = count_2020, y = reorder(precinct_name, count_2020), color = &quot;2020&quot;), size = 3.5) +
-  # 
+  # setting point/legend colours
   scale_color_manual(
     name = &quot;Year&quot;,  
     values = c(&quot;2019&quot; = &quot;#FFB385&quot;, &quot;2020&quot; = &quot;#27408B&quot;)
   ) +
   labs(
     title = &quot;Los Angeles Police Department Homicide Rates&quot;,
-    subtitle = wrapped_subtitle,
+    subtitle = wrapped_subtitle, # inputting the wrapped subtitle from above
     caption = &quot;Data Source: Los Angeles Open Data (2024)&quot;, # citing the data source
     x = &quot;Number of Homicides&quot;,
     y = &quot;LAPD Precinct&quot;
