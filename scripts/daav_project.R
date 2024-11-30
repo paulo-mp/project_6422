@@ -190,6 +190,7 @@ homicides_scatter <-
   geom_point(color = "#69b3a2", size = 4) + # layering with scatterplot for connected scatter graph
   labs(
     title = "Homicides within LAPD jurisdiction (2010-2023)",
+    caption = "Data Source: Los Angeles Open Data (2024)", # citing the data source
     x = "Year",
     y = "Number of Homicides"
   ) + # editing labels
@@ -214,18 +215,37 @@ ggsave(
 # ------------- visualisation 2: animated choropleth map ----------------------
 
 # animating the data year by year on choropleth map
-p <- ggplot(joined_spatial_data) +
-  geom_sf(aes(fill = homicide_count)) +
-  theme_void() +
-  scale_fill_viridis_c() +
-  labs(
-    title = 'Year: {frame_time}', 
-    fill = 'Number of\nHomicides'
-    ) +
-  transition_time(year)
+homicides_choropleth <- 
+  animate(
+    ggplot(joined_spatial_data) + # using joined spatial dataset
+      geom_sf(aes(fill = homicide_count)) + # fill by number of homicides in a polygon each year
+      geom_text(
+        aes(label = paste("Year:", year)), # dynamic year label
+        x = -118.65,  
+        y = 33.72,    # manual coordinates for label - chose bottom left due to layout of map 
+        size = 5, color = "black", hjust = 0, vjust = 0, check_overlap = TRUE # adjusting format of label
+      ) + 
+      transition_time(year) + # animating by year
+      theme_void() + # minimal theme
+      scale_fill_viridis_c() + # colour-blind friendly scale applied
+      labs(
+        title = "Los Angeles Police Department Homicides", 
+        subtitle = "by year and precinct",
+        fill = "Number of\nHomicides",
+        caption = "Data Source: Los Angeles Geohub (2024); Los Angeles Open Data (2024)"
+      ) + # added labels
+      theme(
+        plot.title = element_text(size = 16, family = "Helvetica", hjust = 0.5),
+        plot.subtitle = element_text(size = 14, family = "Helvetica", hjust = 0.5),
+        plot.caption = element_text(face = "italic", size = 10)
+      ), # adjusting formatting of text in visualisation
+    nframes = length(unique(joined_spatial_data$year)), # setting number of years as number of frames
+    width = 450, # setting width
+    height = 650, # setting height
+    fps = 1 # low fps to allow time to look at each choropleth map shown
+  )
 
-homicides_choropleth <- animate(p, nframes = length(unique(joined_spatial_data$year)), width = 500, height = 375, fps = 1)
-
+# view the animation
 homicides_choropleth
 
 # saving the animation
@@ -272,21 +292,25 @@ homicides_dumbbell <- ggplot(dumbbell_data_wide) +
   labs(
     title = "Los Angeles Police Department Homicide Rates",
     subtitle = wrapped_subtitle,
+    caption = "Data Source: Los Angeles Open Data (2024)", # citing the data source
     x = "Number of Homicides",
     y = "LAPD Precinct"
   ) +
   theme_minimal() +
   theme(
-    axis.text.y = element_text(size = 8, family = "Helvetica"),  # y-axis label size and font
-    axis.text.x = element_text(size = 8, family = "Helvetica"),  # x-axis label size and font
-    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  # title font
-    plot.subtitle = element_text(size = 11, family = "Helvetica", color = "grey"),  # subtitle font
-    axis.title = element_text(size = 9, family = "Helvetica", face = "bold"),  # axis title font
+    axis.text.y = element_text(size = 9, family = "Helvetica"),  # y-axis label size and font
+    axis.text.x = element_text(size = 9, family = "Helvetica"),  # x-axis label size and font
+    plot.title = element_text(size = 16, family = "Helvetica", face = "bold"),  # title font
+    plot.subtitle = element_text(size = 13, family = "Helvetica", color = "grey"),  # subtitle font
+    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"),  # axis title font
     panel.grid.major.y = element_blank(), # removing horizontal grid lines
     panel.grid.minor = element_blank() # removing minor vertical lines
   )
+
+# viewing the dumbbell plot
 homicides_dumbbell
 
+# saving the final visualisation
 ggsave(
   filename = here("plots", "homicides_dumbbell.png"),
   plot = homicides_dumbbell
