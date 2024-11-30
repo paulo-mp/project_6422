@@ -59,6 +59,7 @@ A brief list of the libraries installed and loaded for this project is also incl
 | **sf**     | For working with spatial data                     |
 | **gganimate** | For animated plots                             |
 | **gifski** | For animation rendering                           |
+| **renv** | For managing packages                                |
 
 ### Loading Data
 
