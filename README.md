@@ -1,6 +1,8 @@
 # Project_6422: COVID-19 and impacts on homicide rates in Los Angeles
 This repository provides all of the elements of my project exploring homicide rates reported by the Los Angeles Police Department for a Data Analysis and Visualsiation module.
 
+A link to the GitHub pages can be found under my "About" section, or just follow [this link](https://paulo-mp.github.io/project_6422/).
+
 ## Repository guide
 
 scripts: contains the full script with all code necessary to replicate the project
