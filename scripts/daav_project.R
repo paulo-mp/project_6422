@@ -24,7 +24,6 @@ library(sf)
 library(gifski)
 library(gganimate)
 
-
 # -------------- load datasets --------------
 
 rawdata2010s <- read_csv(here("data", "raw", "crime_rawdata_2010s.csv")) 
@@ -262,7 +261,7 @@ dumbbell_data_filter <- homicide_summary_data %>%
   filter(year %in% c(2019, 2020))
 
 # reformatting data as wide data
-dumbbell_data_wide <- dumbbell_data_filter %>%
+dumbbell_data_reformat <- dumbbell_data_filter %>%
   pivot_wider(
     names_from = year,
     values_from = homicide_count,
@@ -275,7 +274,7 @@ wrapped_subtitle <- str_wrap(
   width = 110)
 
 # creating the plot
-homicides_dumbbell <- ggplot(dumbbell_data_wide) +
+homicides_dumbbell <- ggplot(dumbbell_data_reformat) +
   geom_segment(aes(
     x = count_2019, xend = count_2020,
     y = reorder(precinct_name, count_2020), yend = reorder(precinct_name, count_2020)
@@ -309,6 +308,9 @@ homicides_dumbbell <- ggplot(dumbbell_data_wide) +
 
 # viewing the dumbbell plot
 homicides_dumbbell
+
+# saving final data
+write_csv(dumbbell_data_reformat, here("data", "processed", "dumbbell_data_reformat.csv"))
 
 # saving the final visualisation
 ggsave(

@@ -1,8 +1,10 @@
 ---
 title: "Homicide Trends in Los Angeles Police Department Precincts"
-subtitle: "PSY6422 Module Project"
-output: html_document
+subtitle: PSY6422 Module Project
 date: "2024-11-22"
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 # Introduction
@@ -31,7 +33,7 @@ Raw data for this project were obtained from the website sources listed below:
 - [2020 - present LAPD crime data](https://data.lacity.org/Public-Safety/Crime-Data-from-2020-to-Present/2nrs-mtv8/about_data)
 - [LAPD precincts geojson file](https://geohub.lacity.org/datasets/lahub::lapd-divisions/about)
 
-*NB: The above datasets were extracted for analysis and visualisation in November 2024. The raw data in these datasets will continue to change in future. Any visualisations and insights drawn are relate exclusively to the data which were available on the date of extraction*
+*NB: The above datasets were extracted for analysis and visualisation in November 2024. The raw data in these datasets will continue to change in future. Any visualisations and insights drawn are exclusively related to the data which were available on the date of extraction*
 
 # Setting Up
 
@@ -48,7 +50,7 @@ library(gganimate)
 
 ```
 
-The renv package was used in this project. Find the renv.lock file in my [repository](https://github.com/paulo-mp/project_6422) more detailed information about the libraries used and their versions. 
+The renv package was used in this project. Find the renv.lock file in my [repository](https://github.com/paulo-mp/project_6422) for more detailed information about the libraries used and their versions. 
 
 A brief list of the libraries installed and loaded for this project is also included below:
 
@@ -384,7 +386,7 @@ dumbbell_data_filter <- homicide_summary_data %>%
   filter(year %in% c(2019, 2020))
 
 # reformatting as wide data
-dumbbell_data_wide <- dumbbell_data_filter %>%
+dumbbell_data_reformat <- dumbbell_data_filter %>%
   pivot_wider(
     names_from = year,
     values_from = homicide_count,
@@ -397,7 +399,7 @@ wrapped_subtitle <- str_wrap(
   width = 110)
 
 # creating the plot
-homicides_dumbbell <- ggplot(dumbbell_data_wide) +
+homicides_dumbbell <- ggplot(dumbbell_data_reformat) +
   geom_segment(aes(
     x = count_2019, xend = count_2020,
     y = reorder(precinct_name, count_2020), yend = reorder(precinct_name, count_2020)
@@ -438,8 +440,8 @@ homicides_dumbbell
 
 ```{r final save, eval = FALSE}
 
-# saving summary data
-write_csv(dumbbell_data_wide, here("data", "processed", "dumbbell_data_wide.csv"))
+# saving final data
+write_csv(dumbbell_data_reformat, here("data", "processed", "dumbbell_data_reformat.csv"))
 
 # saving final visualisation
 ggsave(

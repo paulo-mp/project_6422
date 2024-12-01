@@ -414,7 +414,7 @@ precincts geojson file</a></li>
 <p><em>NB: The above datasets were extracted for analysis and
 visualisation in November 2024. The raw data in these datasets will
 continue to change in future. Any visualisations and insights drawn are
-relate exclusively to the data which were available on the date of
+exclusively related to the data which were available on the date of
 extraction</em></p>
 </div>
 </div>
@@ -423,7 +423,7 @@ extraction</em></p>
 <div id="loading-packages" class="section level3">
 <h3>Loading Packages</h3>
 <p>The renv package was used in this project. Find the renv.lock file in
-my <a href="https://github.com/paulo-mp/project_6422">repository</a>
+my <a href="https://github.com/paulo-mp/project_6422">repository</a> for
 more detailed information about the libraries used and their
 versions.</p>
 <p>A brief list of the libraries installed and loaded for this project
@@ -455,6 +455,10 @@ is also included below:</p>
 <tr class="odd">
 <td><strong>gifski</strong></td>
 <td>For animation rendering</td>
+</tr>
+<tr class="even">
+<td><strong>renv</strong></td>
+<td>For managing packages</td>
 </tr>
 </tbody>
 </table>
@@ -794,7 +798,7 @@ dumbbell_data_filter &lt;- homicide_summary_data %&gt;%
   filter(year %in% c(2019, 2020))
 
 # reformatting as wide data
-dumbbell_data_wide &lt;- dumbbell_data_filter %&gt;%
+dumbbell_data_reformat &lt;- dumbbell_data_filter %&gt;%
   pivot_wider(
     names_from = year,
     values_from = homicide_count,
@@ -807,7 +811,7 @@ wrapped_subtitle &lt;- str_wrap(
   width = 110)
 
 # creating the plot
-homicides_dumbbell &lt;- ggplot(dumbbell_data_wide) +
+homicides_dumbbell &lt;- ggplot(dumbbell_data_reformat) +
   geom_segment(aes(
     x = count_2019, xend = count_2020,
     y = reorder(precinct_name, count_2020), yend = reorder(precinct_name, count_2020)
@@ -845,8 +849,8 @@ homicides_dumbbell</code></pre>
 </div>
 <div id="saving-final-visualisation-and-data" class="section level3">
 <h3>Saving final visualisation and data</h3>
-<pre class="r"><code># saving summary data
-write_csv(dumbbell_data_wide, here(&quot;data&quot;, &quot;processed&quot;, &quot;dumbbell_data_wide.csv&quot;))
+<pre class="r"><code># saving final data
+write_csv(dumbbell_data_reformat, here(&quot;data&quot;, &quot;processed&quot;, &quot;dumbbell_data_reformat.csv&quot;))
 
 # saving final visualisation
 ggsave(
