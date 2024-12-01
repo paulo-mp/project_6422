@@ -260,7 +260,7 @@ anim_save(
 dumbbell_data_filter <- homicide_summary_data %>%
   filter(year %in% c(2019, 2020))
 
-# reformatting data as wide data
+# reformatting data
 dumbbell_data_reformat <- dumbbell_data_filter %>%
   pivot_wider(
     names_from = year,

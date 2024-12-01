@@ -797,7 +797,7 @@ chunk starts with that.</p>
 dumbbell_data_filter &lt;- homicide_summary_data %&gt;%
   filter(year %in% c(2019, 2020))
 
-# reformatting as wide data
+# reformatting data
 dumbbell_data_reformat &lt;- dumbbell_data_filter %&gt;%
   pivot_wider(
     names_from = year,
