@@ -4,13 +4,12 @@ subtitle: PSY6422 Module Project
 date: "2024-11-22"
 output:
   html_document: default
-  pdf_document: default
 ---
 
 # Introduction
 
 ### Background
-The COVID-19 pandemic significantly impacted society, ranging from the direct effects of contracting the illness, to the mental health and economic impacts of related lockdown and social distancing measures implemented. 
+The COVID-19 pandemic significantly impacted society in a number of ways. These range from direct effects of contracting the illness to the mental health and economic impacts of related lockdown and social distancing measures implemented. 
 
 Despite initial assumptions that the disease did not discriminate, it soon became evident that individuals of certain demographic groups (ethnicity, age, income) were harder hit. In the US state of Michigan, despite only representing 14% of the population, Black residents accounted for 40% of COVID related deaths in early stages of the pandemic [Vox, 2020](https://www.vox.com/2020/4/10/21207520/coronavirus-deaths-economy-layoffs-inequality-covid-pandemic). 
 
@@ -18,14 +17,14 @@ Later, once a vaccine had been developed, serious inequalities in vaccine rollou
 
 In the UK, [a report by the Equality and Human Rights Commission](https://www.equalityhumanrights.com/sites/default/files/equality_and_human_rights_commission_how_coronavirus_has_affected_equality_and_human_rights_2020.pdf) highlights a number of ways in which, without ever having contracted the illness, disadvantages in Britain have widened for individuals of protected characteristics such as gender and race.
 
-With this in mind, I wanted to explore a topic relating to the pandemic to inspect any other unseen effects of the pandemic.
+With this in mind, I wanted to explore a topic relating to the pandemic. I chose to explore homicide rates as this seemed like an area that may see some change under the circumstances we saw in 2020. It seemed equally plausible to me for the change to be in the form of an overall increase or decrease, meaning it felt like a good question to explore with data.
 
 ### Research Questions
 - **How has the COVID-19 pandemic impacted on homicide rates in Los Angeles?**
-- **Are there any underlying patterns in changes observed?**
+- **If there was a change, was everyone equally likely to experience it?**
 
 ### Data Origins
-The project focuses on LAPD data due to the richness of location data associated with crime reports and the openness of available data. The LAPD is also one of the largest police departments in the USA allowing for a large amount of data to be explored in the project. Over 3 million rows of data were obtained for analysis.
+The project focuses on LAPD data due to the richness of location data associated with crime reports and the openness of available data. The LAPD is also one of the largest police departments in the USA allowing for a large amount of data to be explored in the project. Over 3 million rows of crime data were obtained for analysis.
 
 Raw data for this project were obtained from the website sources listed below:
 
@@ -41,6 +40,7 @@ Raw data for this project were obtained from the website sources listed below:
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 
 library(here)
 library(tidyverse)
@@ -216,8 +216,16 @@ geo_map2_renamed <- geo_map1 %>%
 # padding the precinct_num column
 geo_map3_pad <- geo_map2_renamed %>%
   mutate(
+    # changing precinct_num to character to allow padding
     precinct_num = as.character(precinct_num),
-    precinct_num = str_pad(geo_map2_renamed$precinct_num, width = 2, side = "left", pad = "0"),
+    # adding 0 to the left of any characters which aren't already a length of 2
+    precinct_num = str_pad(
+      geo_map2_renamed$precinct_num, 
+      width = 2, 
+      side = "left", 
+      pad = "0"
+      ),
+    # finally changing precinct_num to factor 
     precinct_num = as.factor(precinct_num)
   )
 
@@ -225,12 +233,14 @@ geo_map3_pad <- geo_map2_renamed %>%
 
 ### Joining the data
 
-In the line of code below I am executing the join of spatial and crime data ready for visualisations later in the process. I also complete one final missing values check to identify any potential issues with the join but found no concerns. Note, I also visually reviewed the data for any inconsistencies following the join but found no issues.
+In the line of code below I am executing the join of spatial and crime data ready for visualisations later in the process. I also complete one final missing values check to identify any potential issues with the join but found no issues. Note, I also visually reviewed the data for any inconsistencies following the join but found no issues.
 
 ```{r join, message = FALSE, results = "hide"}
 
 # performing left join on data
-joined_spatial_data <- left_join(geo_map3_pad, homicide_summary_data, by = "precinct_num") %>%
+joined_spatial_data <- left_join(geo_map3_pad, 
+                                 homicide_summary_data, 
+                                 by = "precinct_num") %>%
   arrange(year, precinct_num)
 
 # checking for missing values
@@ -265,26 +275,39 @@ I started the visualisation process by exploring the patterns in the data before
 
 # creating a connected scatterplot
 homicides_scatter <- 
+  # using summary data
   homicide_summary_data %>%
+  # grouping by year to show overall summary across LAPD
   group_by(year) %>%
-  summarise(total_homicide_count = sum(homicide_count)) %>% # creating a total count of homicides per year across LAPD
-  ggplot(aes(x = year, y = total_homicide_count)) + # mapping aesthetics
-  geom_line(colour = "grey") + # adding simple line graph layer
-  geom_point(color = "#69b3a2", size = 4) + # layering with scatterplot for connected scatter graph
-  labs(
+  # total count of homicides
+  summarise(total_homicide_count = sum(homicide_count)) %>% 
+  # mapping aesthetics
+  ggplot(aes(x = year, y = total_homicide_count)) + 
+  # adding simple line graph layer 
+  geom_line(colour = "#69b3a2") + 
+  # layering with scatterplot for connected scatter graph
+  geom_point(color = "#69b3a2", size = 4) + 
+  labs(  # editing labels
     title = "Homicides within LAPD jurisdiction (2010-2023)",
-    caption = "Data Source: Los Angeles Open Data (2024)", # citing the data source
+    # citing the data source
+    caption = "Data Source: Los Angeles Open Data (2024)", 
     x = "Year",
     y = "Number of Homicides"
-  ) + # editing labels
-  theme_minimal() + # opting for a minimal theme
-  theme(
-    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  # title font
-    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"),  # axis title font
-    panel.grid.minor = element_blank(), # removing all minor gridlines
-    panel.grid.major.x = element_blank() # removing major x gridlines
   ) +
-  scale_x_continuous(breaks = seq(2010, 2023, by = 1))  # including all years on x axis
+   # opting for a minimal theme
+  theme_minimal() +
+  theme(
+    # title font
+    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  
+     # axis title font
+    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"), 
+    # removing all minor gridlines
+    panel.grid.minor = element_blank(), 
+    # removing major x gridlines
+    panel.grid.major.x = element_blank() 
+  ) +
+  # including all years on x axis
+  scale_x_continuous(breaks = seq(2010, 2023, by = 1))  
 
 # viewing the plot
 homicides_scatter
@@ -306,7 +329,9 @@ ggsave(
 
 ### Visualisation 2: Animated choropleth map
 
-Following my initial graph, I felt it would be helpful to visualise the trends geographically for a different perspective on the data. I found this visualisation particularly helpful in highlighting two main issues:
+Following my initial graph, I felt it would be helpful to visualise the trends geographically for a different perspective on the data.
+
+I found this visualisation particularly helpful in highlighting two main issues:
 
 - First, I noticed a considerable lack of data in 2021 compared to all other years, with entire precincts lacking data for the whole year. This explained the steep decline in my first visualisation which seemed out of trend. It also raised a new issue with how best to visualise the data.
 - Second, I noticed that, despite a considerable impact of the pandemic on homicides as a whole, the effect seems concentrated in certain parts of the map. This was my initial confirmation of the research question. 
@@ -319,32 +344,45 @@ Following these insights I gained from my second visualisation, I began to consi
 # creating the animation
 homicides_choropleth <- 
   animate(
-    ggplot(joined_spatial_data) + # using joined spatial dataset
-      geom_sf(aes(fill = homicide_count)) + # fill by number of homicides in a polygon each year
+    # using joined spatial dataset
+    ggplot(joined_spatial_data) + 
+      # fill by number of homicides in a polygon each year
+      geom_sf(aes(fill = homicide_count)) + 
       geom_text(
-        aes(label = paste("Year:", year)), # dynamic year label
-        x = -118.65,  
-        y = 33.72,    # manual coordinates for label - chose bottom left due to layout of map 
-        size = 5, color = "black", hjust = 0, vjust = 0, check_overlap = TRUE # adjusting format of label
+        # dynamic year label
+        aes(label = paste("Year:", year)), 
+        x = -118.65, 
+         # manual coordinates for label - chose bottom left due to layout of map 
+        y = 33.72,   
+        # adjusting format of label
+        size = 5, color = "black", hjust = 0, vjust = 0, check_overlap = TRUE 
       ) + 
-      transition_time(year) + # animating by year
-      theme_void() + # minimal theme
-      scale_fill_viridis_c() + # colour-blind friendly scale applied
-      labs(
+      # animating by year
+      transition_time(year) + 
+      # minimal theme
+      theme_void() + 
+      # colour-blind friendly scale applied
+      scale_fill_viridis_c() + 
+      labs(# adding labels
         title = "Los Angeles Police Department Homicides", 
         subtitle = "by year and precinct",
         fill = "Number of\nHomicides",
         caption = "Data Source: Los Angeles Geohub (2024); Los Angeles Open Data (2024)"
-      ) + # added labels
+      ) + 
       theme(
+        # adjusting formatting of text in visualisation
         plot.title = element_text(size = 16, family = "Helvetica", hjust = 0.5),
         plot.subtitle = element_text(size = 14, family = "Helvetica", hjust = 0.5),
         plot.caption = element_text(face = "italic", size = 10)
-      ), # adjusting formatting of text in visualisation
-    nframes = length(unique(joined_spatial_data$year)), # setting number of years as number of frames
-    width = 450, # setting width
-    height = 650, # setting height
-    fps = 1 # low fps to allow time to look at each choropleth map shown
+      ), 
+    # setting number of years as number of frames
+    nframes = length(unique(joined_spatial_data$year)), 
+    # setting width
+    width = 450, 
+    # setting height
+    height = 650, 
+    # low fps to allow time to look at each choropleth map shown
+    fps = 1 
   )
 
 
@@ -365,7 +403,7 @@ anim_save(
 
 **Choosing the visualisation**
 
-For my third and final visualisation, I chose to focus on the steep jump in homicides between 2019 and 2020. I considered looking at "pre" and "post" pandemic averages but felt this would dilute the point of the visualisation which was to explore the spike in homicides and understand where this effect was most profound. Post-pandemic trends were also difficult to assess due to the considerable amount of missing data in 2021. 
+For my third and final visualisation, I chose to focus on the steep jump in homicides between 2019 and 2020. I considered looking at "pre" and "post" pandemic averages but felt this would dilute the point of the visualisation which was to explore the spike in homicides and understand where this effect was most profound. Post-pandemic trends were also difficult to assess due to the considerable amount of missing data in 2021.
 
 I wanted my visualisation to give the viewer a sense of "direction" of the effect. With 21 precincts, it was also important to not overload the viewer with too much visual clutter. I chose a dumbbell chart due to its ability to succinctly visualise two points for a number of categories and allow easy comparison between the two.
 
@@ -373,7 +411,7 @@ I wanted my visualisation to give the viewer a sense of "direction" of the effec
 
 I tried to make purposeful decisions with my formatting to draw the viewer's attention to the story the visualisation is telling. One way I did this was by minimising grid lines to reduce background noise. 
 
-I also chose to colour and size the "2019" point more subtly, as this was to act as the "baseline" which the effect is mapped onto. I achieved this effect by giving the dotted line and the "2020" point the same colour. My aim in doing this was to give the viewer a sense of continuity between the two. My intention was to create an effect of distance travelled to "arrive" at the second data point.
+I also chose to colour and size the "2019" point more subtly, as this was to act as the "baseline" which gives scale to the change seen in 2020. I achieved this effect by giving the dotted line and the "2020" point the same colour. My aim in doing this was to give the viewer a sense of continuity between the two. My intention was to create an effect of distance travelled to "arrive" at the second data point.
 
 Some other formatting decisions I made were in reducing text size of x/y labels and applying a grey colour to the subtitle. These choices were all made in an attempt to reduce the aspects of the graph pulling on the viewer's attention. These aspects are still visible for when the viewer wants that information, but they aren't the first thing the attention is pulled to.
 
@@ -400,35 +438,58 @@ wrapped_subtitle <- str_wrap(
 
 # creating the plot
 homicides_dumbbell <- ggplot(dumbbell_data_reformat) +
+  # adding segment layer for connecting line
   geom_segment(aes(
+    # setting start and end points of segments 
     x = count_2019, xend = count_2020,
-    y = reorder(precinct_name, count_2020), yend = reorder(precinct_name, count_2020)
-  ), linetype = "dotted", color = "#27408B", linewidth = 0.4) + # creating dotted line - colour matches point of interest (2020 count)
-  # small orange dots for 2019
-  geom_point(aes(x = count_2019, y = reorder(precinct_name, count_2020), color = "2019"), size = 2) +
-  # larger blue dots for 2020 - to focus consumer's eye on the point of interest
-  geom_point(aes(x = count_2020, y = reorder(precinct_name, count_2020), color = "2020"), size = 3.5) +
+    y = reorder(precinct_name, count_2020)
+  ), 
+  # creating dotted line - colour matches point of interest (2020 count)
+  linetype = "dotted", color = "#27408B", linewidth = 0.4) +
+  # layering a point illustrate 2019 data
+  geom_point(
+    # small orange dots for 2019
+    aes(x = count_2019, 
+        y = reorder(precinct_name, count_2020), 
+        color = "2019"),
+        size = 2) +
+  # layering a point to illustrate 2020 data
+  geom_point(
+    # larger blue dots for 2020
+    aes(x = count_2020, 
+        y = reorder(precinct_name, count_2020), 
+        color = "2020"), 
+        size = 3.5) +
   # setting point/legend colours
   scale_color_manual(
     name = "Year",  
     values = c("2019" = "#FFB385", "2020" = "#27408B")
   ) +
   labs(
+    # adding labels
     title = "Los Angeles Police Department Homicide Rates",
     subtitle = wrapped_subtitle, # inputting the wrapped subtitle from above
     caption = "Data Source: Los Angeles Open Data (2024)", # citing the data source
     x = "Number of Homicides",
     y = "LAPD Precinct"
   ) +
+  # choosing a minimal theme
   theme_minimal() +
   theme(
-    axis.text.y = element_text(size = 9, family = "Helvetica"),  # y-axis label size and font
-    axis.text.x = element_text(size = 9, family = "Helvetica"),  # x-axis label size and font
-    plot.title = element_text(size = 16, family = "Helvetica", face = "bold"),  # title font
-    plot.subtitle = element_text(size = 13, family = "Helvetica", color = "grey"),  # subtitle font
-    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"),  # axis title font
-    panel.grid.major.y = element_blank(), # removing horizontal grid lines
-    panel.grid.minor = element_blank() # removing minor vertical lines
+    # y-axis label size and font
+    axis.text.y = element_text(size = 8, family = "Helvetica"),
+    # x-axis label size and font
+    axis.text.x = element_text(size = 8, family = "Helvetica"),  
+    # title font
+    plot.title = element_text(size = 16, family = "Helvetica", face = "bold"),  
+    # subtitle font
+    plot.subtitle = element_text(size = 12, family = "Helvetica", color = "grey"),  
+    # axis title font
+    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"), 
+    # removing horizontal grid lines
+    panel.grid.major.y = element_blank(), 
+    # removing minor vertical lines
+    panel.grid.minor = element_blank() 
   )
 
 # viewing the final visualisation
@@ -454,14 +515,14 @@ ggsave(
 # Conclusion
 
 ### Interpretation
-My final visualisation clearly shows the significant difference in homicide rates from 2019 to 2020. The visualisation effectively breaks down the difference by precinct, allowing the viewer to understand where the changes were most pronounced. 
+My final visualisation clearly shows an increase in homicide rates from 2019 to 2020. The visualisation effectively breaks down the change by precinct, allowing the viewer to understand where the increases were most pronounced. 
 
-The four precincts with the heighest rates of homicide in 2020 (Southeast, Newton, 77th Street, and Olympic), are all within the central and southeast areas covered by the LAPD. These areas appear to also be the lowest income areas of Los Angeles [Economic Roundtable](https://economicrt.org/publication/concentrated-poverty-in-los-angeles/). 
+The four precincts with the highest rates of homicide in 2020 (Southeast, Newton, 77th Street, and Olympic), are all within the central and southeast areas covered by the LAPD. These areas are also the lowest income areas of Los Angeles [Economic Roundtable](https://economicrt.org/publication/concentrated-poverty-in-los-angeles/).
 
 It seems that the visualisation answers the initial questions. The COVID-19 pandemic resulted in a significant increase in homicide rates across Los Angeles. However, not for all residents. Residents of central and southeast Los Angeles were most likely to feel the impacts of this change. Incidentally, these are also some of the lower income areas of Los Angeles.
 
 ### Reflections on the project
-As this was my first experience coding and working with data, there are a few reflections to discuss from my experience on this project.
+As this was my first time coding and working with data, there are a few reflections to discuss from my experience on this project.
 
 **Interpretability**
 
@@ -469,11 +530,11 @@ First, an important improvement for my visualisation would be to make it more wi
 
 On reflection, in keeping such a specific audience in mind I also assumed a high level of pre-existing knowledge about Los Angeles' geography and neighbourhoods. The graph includes no more information about the areas aside from their names. That means that anyone trying to interpret the information who doesn't know these areas has to seek out detail elsewhere, rather than receiving the entire message from the visualisation. Including some information about the demographics of the precinct residents or homicide victims would add important context.
 
-An additional point regarding interpretability should be made about the raw homicide count. Percentage change was initially considered but seemed to communicate the wrong message about the data, with small changes at times equating to inflated percentages. A relative population density figure (e.g. number of homicides per 1000 residents) would have been ideal for this. It would allow for more direct comparison between precincts and even to other cities.
+An additional point regarding interpretability should be made about the raw homicide count. Percentage change was initially considered but seemed to communicate the wrong message about the data, with small changes at times equating to inflated percentages if the homicide count in 2019 was already low. A relative population density figure (e.g. number of homicides per 1000 residents) would have been the ideal fix for this. It would allow for more direct comparison between precincts and even to other cities.
 
 **Availability of data**
 
-A limitation of this project was also the availability of data. With 2021 data completely missing in almost half of the precincts and very poor recording in the remainder of precincts, including any data from this calendar year in a visualisation would have been misleading. That also meant exploring overall trends following the pandemic became considerably more difficult.
+A limitation of this project was the availability of data. With 2021 data completely missing in almost half of the precincts and very poor recording in the remainder of precincts, including any data from this calendar year in a visualisation would have been misleading. That also meant exploring overall trends following the pandemic became considerably more difficult.
 
 **Breaking the data down further**
 
