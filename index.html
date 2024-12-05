@@ -566,7 +566,7 @@ range(homicidedata1$date_occ) # &quot;01/01/2010 12:00:00 AM&quot; &quot;12/31/2
 columns &lt;- c(&quot;date_occ&quot;, &quot;precinct_num&quot;, &quot;precinct_name&quot;, &quot;crime_type&quot;)
 sapply(homicidedata1[columns], class)
 
-# there should only be 21 LAPD precincts. This is correct, but noticed geo_map will need padding to allow join with homicide data.
+# there should only be 21 LAPD precincts. This is correct, but noticed geo_map will needpadding to allow join with homicide data.
 range(homicidedata1$precinct_num) # 01 - 21
 range(geo_map1$PREC) # 1 - 21</code></pre>
 </div>
@@ -788,7 +788,6 @@ homicides_choropleth &lt;-
     # low fps to allow time to look at each choropleth map shown
     fps = 1 
   )
-
 
 # view the animation
 homicides_choropleth

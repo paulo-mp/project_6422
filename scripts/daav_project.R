@@ -4,10 +4,6 @@
 ###################  ** Setting up ** #################### 
 
 
-# Dependencies:
-## The project uses the sf package which requires the following dependencies: GEOS, GDAL, and PROJ. These are often installed automatically but consider setting them up if any issues are encountered.
-
-
 # -------------- install packages --------------
 
 install.packages("here")
@@ -131,10 +127,6 @@ homicide_summary_data <- homicidedata3_date %>%
     .groups = "drop"
   )
 
-# saving summary data
-write_csv(homicide_summary_data, here("data", "processed", "homicide_summary_data.csv"))
-
-
 # -------------- processing geojson data --------------
 
 
@@ -170,6 +162,12 @@ joined_spatial_data <- left_join(geo_map3_pad, homicide_summary_data, by = "prec
 # sanity check - checking for missing values following join as it may indicate inconsistencies in data - no concerns
 colSums(is.na(joined_spatial_data))
 
+
+# -------------- saving data --------------
+
+# saving summary data
+write_csv(homicide_summary_data, here("data", "processed", "homicide_summary_data.csv"))
+
 # saving joined data
 st_write(joined_spatial_data, here("data", "processed", "joined_spatial_data.geojson"))
 
@@ -181,26 +179,39 @@ st_write(joined_spatial_data, here("data", "processed", "joined_spatial_data.geo
 # connected scatterplot graph visualisation of trends through the years
 
 homicides_scatter <- 
+  # using summary data
   homicide_summary_data %>%
+  # grouping by year to show overall summary across LAPD
   group_by(year) %>%
-  summarise(total_homicide_count = sum(homicide_count)) %>% # creating a total count of homicides per year across LAPD
-  ggplot(aes(x = year, y = total_homicide_count)) + # mapping aesthetics
-  geom_line(colour = "grey") + # adding simple line graph layer
-  geom_point(color = "#69b3a2", size = 4) + # layering with scatterplot for connected scatter graph
-  labs(
+  # total count of homicides
+  summarise(total_homicide_count = sum(homicide_count)) %>% 
+  # mapping aesthetics
+  ggplot(aes(x = year, y = total_homicide_count)) + 
+  # adding simple line graph layer 
+  geom_line(colour = "#69b3a2") + 
+  # layering with scatterplot for connected scatter graph
+  geom_point(color = "#69b3a2", size = 4) + 
+  labs(  # editing labels
     title = "Homicides within LAPD jurisdiction (2010-2023)",
-    caption = "Data Source: Los Angeles Open Data (2024)", # citing the data source
+    # citing the data source
+    caption = "Data Source: Los Angeles Open Data (2024)", 
     x = "Year",
     y = "Number of Homicides"
-  ) + # editing labels
-  theme_minimal() + # opting for a minimal theme
-  theme(
-    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  # title font
-    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"),  # axis title font
-    panel.grid.minor = element_blank(), # removing all minor gridlines
-    panel.grid.major.x = element_blank() # removing major x gridlines
   ) +
-  scale_x_continuous(breaks = seq(2010, 2023, by = 1))  # including all years on x axis
+  # opting for a minimal theme
+  theme_minimal() +
+  theme(
+    # title font
+    plot.title = element_text(size = 15, family = "Helvetica", face = "bold"),  
+    # axis title font
+    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"), 
+    # removing all minor gridlines
+    panel.grid.minor = element_blank(), 
+    # removing major x gridlines
+    panel.grid.major.x = element_blank() 
+  ) +
+  # including all years on x axis
+  scale_x_continuous(breaks = seq(2010, 2023, by = 1))  
 
 # viewing the plot
 homicides_scatter
@@ -214,34 +225,48 @@ ggsave(
 # ------------- visualisation 2: animated choropleth map ----------------------
 
 # animating the data year by year on choropleth map
+
 homicides_choropleth <- 
   animate(
-    ggplot(joined_spatial_data) + # using joined spatial dataset
-      geom_sf(aes(fill = homicide_count)) + # fill by number of homicides in a polygon each year
+    # using joined spatial dataset
+    ggplot(joined_spatial_data) + 
+      # fill by number of homicides in a polygon each year
+      geom_sf(aes(fill = homicide_count)) + 
       geom_text(
-        aes(label = paste("Year:", year)), # dynamic year label
-        x = -118.65,  
-        y = 33.72,    # manual coordinates for label - chose bottom left due to layout of map 
-        size = 5, color = "black", hjust = 0, vjust = 0, check_overlap = TRUE # adjusting format of label
+        # dynamic year label
+        aes(label = paste("Year:", year)), 
+        x = -118.65, 
+        # manual coordinates for label - chose bottom left due to layout of map 
+        y = 33.72,   
+        # adjusting format of label
+        size = 5, color = "black", hjust = 0, vjust = 0, check_overlap = TRUE 
       ) + 
-      transition_time(year) + # animating by year
-      theme_void() + # minimal theme
-      scale_fill_viridis_c() + # colour-blind friendly scale applied
-      labs(
+      # animating by year
+      transition_time(year) + 
+      # minimal theme
+      theme_void() + 
+      # colour-blind friendly scale applied
+      scale_fill_viridis_c() + 
+      labs(# adding labels
         title = "Los Angeles Police Department Homicides", 
         subtitle = "by year and precinct",
         fill = "Number of\nHomicides",
         caption = "Data Source: Los Angeles Geohub (2024); Los Angeles Open Data (2024)"
-      ) + # added labels
+      ) + 
       theme(
+        # adjusting formatting of text in visualisation
         plot.title = element_text(size = 16, family = "Helvetica", hjust = 0.5),
         plot.subtitle = element_text(size = 14, family = "Helvetica", hjust = 0.5),
         plot.caption = element_text(face = "italic", size = 10)
-      ), # adjusting formatting of text in visualisation
-    nframes = length(unique(joined_spatial_data$year)), # setting number of years as number of frames
-    width = 450, # setting width
-    height = 650, # setting height
-    fps = 1 # low fps to allow time to look at each choropleth map shown
+      ), 
+    # setting number of years as number of frames
+    nframes = length(unique(joined_spatial_data$year)), 
+    # setting width
+    width = 450, 
+    # setting height
+    height = 650, 
+    # low fps to allow time to look at each choropleth map shown
+    fps = 1 
   )
 
 # view the animation
@@ -275,38 +300,61 @@ wrapped_subtitle <- str_wrap(
 
 # creating the plot
 homicides_dumbbell <- ggplot(dumbbell_data_reformat) +
+  # adding segment layer for connecting line
   geom_segment(aes(
+    # setting start and end points of segments 
     x = count_2019, xend = count_2020,
-    y = reorder(precinct_name, count_2020), yend = reorder(precinct_name, count_2020)
-  ), linetype = "dotted", color = "#27408B", linewidth = 0.4) + # creating dotted line - colour matches point of interest (2020 count)
-  # small orange dots for 2019
-  geom_point(aes(x = count_2019, y = reorder(precinct_name, count_2020), color = "2019"), size = 2) +
-  # larger blue dots for 2020 - to focus consumer's eye on the point of interest
-  geom_point(aes(x = count_2020, y = reorder(precinct_name, count_2020), color = "2020"), size = 3.5) +
-  # 
+    y = reorder(precinct_name, count_2020)
+  ), 
+  # creating dotted line - colour matches point of interest (2020 count)
+  linetype = "dotted", color = "#27408B", linewidth = 0.4) +
+  # layering a point illustrate 2019 data
+  geom_point(
+    # small orange dots for 2019
+    aes(x = count_2019, 
+        y = reorder(precinct_name, count_2020), 
+        color = "2019"),
+    size = 2) +
+  # layering a point to illustrate 2020 data
+  geom_point(
+    # larger blue dots for 2020
+    aes(x = count_2020, 
+        y = reorder(precinct_name, count_2020), 
+        color = "2020"), 
+    size = 3.5) +
+  # setting point/legend colours
   scale_color_manual(
     name = "Year",  
     values = c("2019" = "#FFB385", "2020" = "#27408B")
   ) +
   labs(
+    # adding labels
     title = "Los Angeles Police Department Homicide Rates",
-    subtitle = wrapped_subtitle,
+    subtitle = wrapped_subtitle, # inputting the wrapped subtitle from above
     caption = "Data Source: Los Angeles Open Data (2024)", # citing the data source
     x = "Number of Homicides",
     y = "LAPD Precinct"
   ) +
+  # choosing a minimal theme
   theme_minimal() +
   theme(
-    axis.text.y = element_text(size = 9, family = "Helvetica"),  # y-axis label size and font
-    axis.text.x = element_text(size = 9, family = "Helvetica"),  # x-axis label size and font
-    plot.title = element_text(size = 16, family = "Helvetica", face = "bold"),  # title font
-    plot.subtitle = element_text(size = 13, family = "Helvetica", color = "grey"),  # subtitle font
-    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"),  # axis title font
-    panel.grid.major.y = element_blank(), # removing horizontal grid lines
-    panel.grid.minor = element_blank() # removing minor vertical lines
+    # y-axis label size and font
+    axis.text.y = element_text(size = 8, family = "Helvetica"),
+    # x-axis label size and font
+    axis.text.x = element_text(size = 8, family = "Helvetica"),  
+    # title font
+    plot.title = element_text(size = 16, family = "Helvetica", face = "bold"),  
+    # subtitle font
+    plot.subtitle = element_text(size = 12, family = "Helvetica", color = "grey"),  
+    # axis title font
+    axis.title = element_text(size = 10, family = "Helvetica", face = "bold"), 
+    # removing horizontal grid lines
+    panel.grid.major.y = element_blank(), 
+    # removing minor vertical lines
+    panel.grid.minor = element_blank() 
   )
 
-# viewing the dumbbell plot
+# viewing the final visualisation
 homicides_dumbbell
 
 # saving final data
